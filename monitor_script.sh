@@ -44,7 +44,7 @@ function get_mem_usage() {
 
         # usage = 100 * mem_used / mem_total
         local -r mem_used=$(($mem_total - $mem_available))
-        echo "$mem_used" "$mem_total" "%" | awk '{ print 100*($1/$2)$3 }'
+        echo "$mem_used" "$mem_total" | awk '{ print ($1/$2) }'
 }
 
 function get_cpu_info() {
@@ -84,88 +84,45 @@ function get_cpu_usage() {
         echo "${cpu_prev[@]}" >${TEMP}
 
         # usage = 100 * (cpu_used_cur - cpu_used_prev) / (cpu_total_cur-cpu_total_prev)
-        echo "$cpu_used_cur" "$cpu_used_prev" "$cpu_total_cur" "$cpu_total_prev" "%" | awk 'BEGIN {FS=" "} ; { print 100*(($1-$2)/($3-$4))$5 }'
+        echo "$cpu_used_cur" "$cpu_used_prev" "$cpu_total_cur" "$cpu_total_prev" | awk 'BEGIN {FS=" "} ; { print (($1-$2)/($3-$4)) }'
 
 }
 
 function print_usage() {
-
-        # echo [$(date)]
-        # echo \* CPU usage: "$(get_cpu_usage)"
-        # echo \* Memory usage: "$(get_mem_usage)"
-        # echo \* Disk usage: $(get_disk_usage)
-        echo <<-EOF
-{
-  "timestamp": "$(date)"
-  "usage:": {
-    "cpu": "$(get_cpu_usage)",
-    "memory": "$(get_mem_usage)",
-    "disk": "$(get_disk_usage)"
-  }
-}
+local USAGE
+USAGE=$(cat <<EOF | curl --data-binary @- http://35.209.232.7:9091/metrics/job/some_job/instance/$1
+# HELP cpu_usage is the cpu_usage over time, from a specific sample workflow.
+# TYPE cpu_usage gauge
+cpu_usage{sample="$1"} $(get_cpu_usage)
+# HELP memory_usage is the memory usage over time, from a specific sample workflow.
+# TYPE memory_usage gauge
+memory_usage{sample="$1"} $(get_mem_usage)
+# HELP cpu_cores is the number of the cores attached to this CPU during the workflow.
+# TYPE cpu_cores gauge
+cpu_cores{sample="$1"} $(nproc)
+# HELP memory_total is the total memory attached to this specific sample workflow.
+# TYPE memory_total gauge
+memory_total{sample="$1"} $(echo $(get_mem_total) 1000000 | awk '{ print $1/$2 }')
 EOF
+)
+echo $USAGE
 }
+#disk_usage{sample="$1"} $(get_disk_usage)
+#disk_total{sample="$1"} $(df -h | grep cromwell_root | awk '{ print $2}')
+# $(date -u +%s)
 
-function print_summary() {
-        # display header information
-        # echo ==================================
-        # echo =========== MONITORING ===========
-        # echo ==================================
+declare -a cpu_prev
+cpu_prev[0]=$(get_cpu_used)
+cpu_prev[1]=$(get_cpu_total)
+echo "${cpu_prev[@]}" >${TEMP}
 
-        # summary info
-        # echo --- General Information ---
-        # number of cores
-        # echo \#CPU: $(nproc)
-        # multiply by 10^-6 to convert KB to GB
-        # echo Total Memory: $(echo $(get_mem_total) 1 000 000 | awk '{ print $1/$2 }')G
+if [ -z "$MONITOR_SCRIPT_SLEEP" ]; then
+        MONITOR_SCRIPT_SLEEP=10
+fi
 
-        # if [ "$backend" = "aws" ]; then
-        #         echo Total Disk space: $(df -h | grep '/$' | awk '{ print $2 }')
-        # else
-        #         echo Total Disk space: $(df -h | grep cromwell_root | awk '{ print $2}')
-        # fi
-
-        echo <<-EOF
-{
-  "sample": "${1}",
-  "timestamp": "$(date)",
-  "runtime": {
-    "cores": "$(nproc)",
-    "total-memory": "$(echo $(get_mem_total) 1 000 000 | awk '{ print $1/$2 }')G",
-    "disk-space": "$(df -h | grep cromwell_root | awk '{ print $2}')"
-  }
-}
-EOF
-
-}
-
-function main() {
-        # disk, mem and cpu general statisitcs
-        print_summary
-
-        # create variable to store cpu being used (cpu_prev[0]) and total cpu total (cpu_prev[1])
-        # save variable to a temp file to allow passing in values to a function
-        declare -a cpu_prev
-        cpu_prev[0]=$(get_cpu_used)
-        cpu_prev[1]=$(get_cpu_total)
-        # save global values to temp file to allow passing in values to a function
-        echo "${cpu_prev[@]}" >${TEMP}
-
-        # sleep b/w getting usage and intially storing the cpu_previous usage values
-        # this is b/c cpu usage values are time dependent
-        # to calculate cpu usage, values must be determined from 2 diff time stamps
-        if [ -z "$MONITOR_SCRIPT_SLEEP" ]; then
-                MONITOR_SCRIPT_SLEEP=30
-        fi
-        # get usage of disk, cpu and mem every MONITOR_SCRIPT_SLEEP sec
-
+sleep "$MONITOR_SCRIPT_SLEEP"
+while true; do
+        echo $(print_usage $1)
         sleep "$MONITOR_SCRIPT_SLEEP"
-        while true; do
-                print_usage
-                sleep "$MONITOR_SCRIPT_SLEEP"
-        done
-}
+done
 
-# echo "SAMPLE: ${1}"
-
-main
