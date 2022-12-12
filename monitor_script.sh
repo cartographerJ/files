@@ -1,6 +1,6 @@
 #!/bin/bash
 
-apt-get install -y wget
+apt-get install -y curl
 
 declare -a TEMP=$(mktemp /temp_monitoring.XXXXXXXX)
 
