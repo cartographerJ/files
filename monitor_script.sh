@@ -1,5 +1,7 @@
 #!/bin/bash
 
+apt-get install -y wget
+
 declare -a TEMP=$(mktemp /temp_monitoring.XXXXXXXX)
 
 if [[ -z "${BACKEND}" ]]; then
