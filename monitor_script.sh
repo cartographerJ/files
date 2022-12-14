@@ -1,5 +1,10 @@
 #!/bin/bash
 
+CLOUDRUN_URL="https://pushgateway-pndkcp73qq-uc.a.run.app"
+
+CLOUDRUN_TOKEN=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://pushgateway-pndkcp73qq-uc.a.run.app" \
+-H "Metadata-Flavor: Google")
+
 apt-get update && apt-get install -y curl
 
 declare -a TEMP=$(mktemp /temp_monitoring.XXXXXXXX)
@@ -92,7 +97,7 @@ function get_cpu_usage() {
 
 function print_usage() {
 local USAGE
-USAGE=$(cat <<EOF | curl --data-binary @- http://35.206.67.99:9091/metrics/job/some_job/instance/$1
+USAGE=$(cat <<EOF | curl -s -H "Authorization: Bearer $CLOUDRUN_TOKEN" --data-binary @- $CLOUDRUN_URL/metrics/job/$2/instance/$1
 # HELP cpu_usage is the cpu_usage over time, from a specific sample workflow.
 # TYPE cpu_usage gauge
 cpu_usage{sample="$1"} $(get_cpu_usage)
@@ -124,7 +129,7 @@ fi
 
 sleep "$MONITOR_SCRIPT_SLEEP"
 while true; do
-        print_usage $1
+        print_usage $1 cellsnp-lite-healthy
         sleep "$MONITOR_SCRIPT_SLEEP"
 done
 
