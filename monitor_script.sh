@@ -1,11 +1,11 @@
 #!/bin/bash
 
+apt-get update && apt-get install -y curl
+
 CLOUDRUN_URL="https://pushgateway-pndkcp73qq-uc.a.run.app"
 
 CLOUDRUN_TOKEN=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://pushgateway-pndkcp73qq-uc.a.run.app" \
 -H "Metadata-Flavor: Google")
-
-apt-get update && apt-get install -y curl
 
 declare -a TEMP=$(mktemp /temp_monitoring.XXXXXXXX)
 
