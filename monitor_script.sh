@@ -1,6 +1,7 @@
 #!/bin/bash
 
-apt-get update && apt-get upgrade && apt-get install -y curl
+apt-get update && apt-get upgrade
+apt-get install -y curl
 
 CLOUDRUN_URL="https://pushgateway-pndkcp73qq-uc.a.run.app"
 
