@@ -129,7 +129,9 @@ fi
 
 sleep "$MONITOR_SCRIPT_SLEEP"
 while true; do
-        print_usage $1 cellsnp-lite-healthy
+        print_usage $1 $2
         sleep "$MONITOR_SCRIPT_SLEEP"
+        CLOUDRUN_TOKEN=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://pushgateway-pndkcp73qq-uc.a.run.app" \
+-H "Metadata-Flavor: Google")
 done
 
